@@ -5,9 +5,12 @@ import { io } from 'socket.io-client'
 import './App.css'
 
 const DEFAULT_WORLD = { width: 1200, height: 760 }
+const PROD_BACKEND_URL = 'https://word-game-backend-9n6o.onrender.com'
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL ||
-  `${window.location.protocol}//${window.location.hostname}:4000`
+  (['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? `${window.location.protocol}//${window.location.hostname}:4000`
+    : PROD_BACKEND_URL)
 
 const EMPTY_STATE = {
   roomId: 'main',
