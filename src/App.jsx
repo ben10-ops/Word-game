@@ -176,7 +176,12 @@ function App() {
 
   useEffect(() => {
     const socket = io(BACKEND_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      timeout: 20000,
+      reconnection: true,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1000,
     })
     socketRef.current = socket
 
