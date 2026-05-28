@@ -853,7 +853,10 @@
   white-space: nowrap;
   letter-spacing: 0;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255,255,255,0.18);
   backdrop-filter: none;
+  pointer-events: auto;
   transition:
     transform 0.1s ease,
     box-shadow 0.15s ease,

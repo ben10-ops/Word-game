@@ -540,7 +540,7 @@ function App() {
 
           <div className="word-field" ref={arenaRef}>
             {state.words.map((word) => {
-              const faded = state.event?.id === 'visibility-drop' ? 0.42 : 0.92
+              const faded = state.event?.id === 'visibility-drop' ? 0.48 : 1.0
               const tokenGradient = getTokenGradient(word)
               const leftPercent = (word.x / worldWidth) * 100
               const topPercent = (word.y / worldHeight) * 100
@@ -562,7 +562,7 @@ function App() {
                     mass: 0.55,
                   }}
                   style={{
-                    fontSize: `${Math.max(12, word.size * wordScale * (isMobileDevice ? 0.95 : 1.07))}px`,
+                    fontSize: `${Math.max(13, word.size * wordScale * (isMobileDevice ? 1.05 : 1.07))}px`,
                     ...tokenGradient,
                   }}
                   onClick={() => tapWord(word.id)}
