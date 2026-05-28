@@ -14,15 +14,28 @@ const BACKEND_URL =
 
 const EMPTY_STATE = {
   roomId: 'main',
+  sessionId: '',
   performanceMode: 'smooth',
   running: false,
   timeLeft: 0,
   question: { prompt: '', options: [] },
   words: [],
   players: [],
+  sessionTopFive: [],
+  maxPlayers: 20,
   feed: [],
   event: { id: null, name: '', endsAtMs: 0 },
   world: DEFAULT_WORLD,
+}
+
+function getOrCreatePlayerSessionId() {
+  if (typeof window === 'undefined') return ''
+  const key = 'word-game-player-session-id'
+  const existing = window.localStorage.getItem(key)
+  if (existing) return existing
+  const generated = `ps-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  window.localStorage.setItem(key, generated)
+  return generated
 }
 
 function hashString(value) {
@@ -62,6 +75,7 @@ function App() {
   const [state, setState] = useState(EMPTY_STATE)
   const [connected, setConnected] = useState(false)
   const [playerId, setPlayerId] = useState('')
+  const [playerSessionId, setPlayerSessionId] = useState(() => getOrCreatePlayerSessionId())
   const [selfJoinName, setSelfJoinName] = useState('')
   const [joinRequested, setJoinRequested] = useState(false)
   const [joinError, setJoinError] = useState('')
@@ -74,6 +88,7 @@ function App() {
   const [feedbackImproveOther, setFeedbackImproveOther] = useState('')
   const [feedbackSuggestions, setFeedbackSuggestions] = useState('')
   const [feedbackError, setFeedbackError] = useState('')
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
 
   const isPlayerView = useMemo(() => {
     const params = new URLSearchParams(window.location.search)
@@ -94,18 +109,21 @@ function App() {
     () => [...state.players].sort((left, right) => right.score - left.score),
     [state.players],
   )
-  const submittedPlayers = useMemo(
-    () => state.players.filter((player) => player.surveySubmitted),
-    [state.players],
-  )
-  const submittedLeaderboard = useMemo(
-    () => [...submittedPlayers].sort((left, right) => right.score - left.score),
-    [submittedPlayers],
-  )
+  const topPlayers = useMemo(() => {
+    if (Array.isArray(state.sessionTopFive) && state.sessionTopFive.length > 0) {
+      return state.sessionTopFive.slice(0, 5)
+    }
+    return [...state.players].sort((left, right) => right.score - left.score).slice(0, 5)
+  }, [state.players, state.sessionTopFive])
   const winnerRanking = useMemo(() => {
     const qualified = state.players.filter((player) => player.isQualified)
     const source = qualified.length > 0 ? qualified : state.players
-    return [...source].sort((left, right) => right.score - left.score)
+    return [...source].sort((left, right) => {
+      const leftAttempt = left.attempted ? 1 : 0
+      const rightAttempt = right.attempted ? 1 : 0
+      if (rightAttempt !== leftAttempt) return rightAttempt - leftAttempt
+      return right.score - left.score
+    })
   }, [state.players])
   const livePlayers = useMemo(
     () => state.players.filter((player) => player.isOnline),
@@ -113,15 +131,12 @@ function App() {
   )
 
   const groupLead = useMemo(() => {
-    if (submittedLeaderboard.length === 0) return 'No submitted results yet'
-    if (
-      submittedLeaderboard.length > 1 &&
-      submittedLeaderboard[0].score === submittedLeaderboard[1].score
-    ) {
+    if (topPlayers.length === 0) return 'No scores yet'
+    if (topPlayers.length > 1 && topPlayers[0].score === topPlayers[1].score) {
       return 'Tie'
     }
-    return submittedLeaderboard[0].name
-  }, [submittedLeaderboard])
+    return topPlayers[0].name
+  }, [topPlayers])
 
   const activePlayerRank = useMemo(() => {
     if (!activePlayer) return null
@@ -165,15 +180,6 @@ function App() {
     return url.toString()
   }, [])
 
-  const isLikelyLocalOnly = useMemo(() => {
-    try {
-      const parsed = new URL(playerJoinLink)
-      return ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname)
-    } catch {
-      return true
-    }
-  }, [playerJoinLink])
-
   useEffect(() => {
     const socket = io(BACKEND_URL, {
       transports: ['polling', 'websocket'],
@@ -197,9 +203,15 @@ function App() {
       setState(nextState)
     })
 
-    socket.on('player:joined', ({ playerId: joinedPlayerId, name }) => {
+    socket.on('player:joined', ({ playerId: joinedPlayerId, name, sessionId }) => {
       setPlayerId(joinedPlayerId)
       setSelfJoinName(name)
+      if (sessionId) {
+        setPlayerSessionId(sessionId)
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('word-game-player-session-id', sessionId)
+        }
+      }
       setJoinRequested(false)
       setJoinError('')
     })
@@ -239,14 +251,14 @@ function App() {
     const trimmed = selfJoinName.trim()
     if (!trimmed) return undefined
 
-    socketRef.current?.emit('player:join', { name: trimmed })
+    socketRef.current?.emit('player:join', { name: trimmed, sessionId: playerSessionId })
 
     const retryId = window.setInterval(() => {
-      socketRef.current?.emit('player:join', { name: trimmed })
+      socketRef.current?.emit('player:join', { name: trimmed, sessionId: playerSessionId })
     }, 2500)
 
     return () => window.clearInterval(retryId)
-  }, [activePlayer, connected, isPlayerView, joinRequested, selfJoinName])
+  }, [activePlayer, connected, isPlayerView, joinRequested, playerSessionId, selfJoinName])
 
   const joinSelfInPlayerView = () => {
     const trimmed = selfJoinName.trim()
@@ -279,6 +291,8 @@ function App() {
   }
 
   const submitFeedback = () => {
+    if (feedbackSubmitting) return
+
     if (feedbackApps.length === 0) {
       setFeedbackError('Q1 is required — please select at least one application.')
       return
@@ -291,23 +305,68 @@ function App() {
       setFeedbackError('Q3 is required — please select at least one area for improvement.')
       return
     }
+
+    const aspectsWell = feedbackWell.filter((item) => item !== '__other_well__')
+    const improvementsNeeded = feedbackImprove.filter((item) => item !== '__other_improve__')
+    const trimmedWellOther = feedbackWellOther.trim()
+    const trimmedImproveOther = feedbackImproveOther.trim()
+
+    if (feedbackWell.includes('__other_well__') && !trimmedWellOther) {
+      setFeedbackError('Please specify the "Other" value for question 2.')
+      return
+    }
+
+    if (feedbackImprove.includes('__other_improve__') && !trimmedImproveOther) {
+      setFeedbackError('Please specify the "Other" value for question 3.')
+      return
+    }
+
+    if (feedbackWell.includes('__other_well__')) {
+      aspectsWell.push(`Other: ${trimmedWellOther}`)
+    }
+
+    if (feedbackImprove.includes('__other_improve__')) {
+      improvementsNeeded.push(`Other: ${trimmedImproveOther}`)
+    }
+
     setFeedbackError('')
-    socketRef.current?.emit('player:survey-submitted')
-    setFeedbackDone(true)
+    setFeedbackSubmitting(true)
+
+    socketRef.current?.emit(
+      'player:survey-submitted',
+      {
+        playerId,
+        playerSessionId,
+        playerName: activePlayer?.name || selfJoinName,
+        appsUsed: feedbackApps,
+        aspectsWell,
+        aspectsWellOther: feedbackWell.includes('__other_well__') ? trimmedWellOther : '',
+        improvementsNeeded,
+        improvementsOther: feedbackImprove.includes('__other_improve__') ? trimmedImproveOther : '',
+        additionalSuggestions: feedbackSuggestions,
+      },
+      (response) => {
+        setFeedbackSubmitting(false)
+        if (!response?.ok) {
+          setFeedbackError(response?.message || 'Unable to submit feedback right now.')
+          return
+        }
+        setFeedbackDone(true)
+      },
+    )
   }
 
   const worldWidth = state.world?.width || DEFAULT_WORLD.width
   const worldHeight = state.world?.height || DEFAULT_WORLD.height
   const wordScale = Math.min(arenaSize.width / worldWidth, arenaSize.height / worldHeight)
   const eventName = state.event?.name ? `System Event: ${state.event.name}` : 'Nominal state'
-  const topPlayers = submittedLeaderboard.slice(0, 10)
   if (!isPlayerView) {
     return (
       <main className="app-shell host-screen">
         <header className="host-topbar">
           <div>
-            <p className="label">Live Round</p>
-            <p className="big">{state.timeLeft}s</p>
+            <p className="label">Active Players</p>
+            <p className="big">{state.players.length}/{state.maxPlayers || 20}</p>
           </div>
           <div>
             <p className="label">System State</p>
@@ -354,7 +413,9 @@ function App() {
                     <span>
                       {index + 1}. {player.name}
                     </span>
-                    <strong style={{ color: player.color }}>{player.score}</strong>
+                    <strong style={{ color: player.color }}>
+                      {player.attempted ? player.score : 'No Attempt'}
+                    </strong>
                   </li>
                 ))
               )}
@@ -363,7 +424,6 @@ function App() {
 
           <article className="host-card live-card">
             <h2>Playing Live</h2>
-            <p className="subtle">Round Timer: {state.timeLeft}s</p>
             <ul className="live-list">
               {livePlayers.length === 0 ? (
                 <li>No active players right now</li>
@@ -390,11 +450,7 @@ function App() {
               />
             </div>
             <p className="subtle">Room: {state.roomId}</p>
-            {isLikelyLocalOnly ? (
-              <p className="qr-warning">Use LAN URL for phone access (example: http://192.168.1.20:5173).</p>
-            ) : (
-              <p className="subtle">Players scan and join instantly.</p>
-            )}
+            <p className="subtle">Players scan and join instantly.</p>
           </article>
 
           <article className="host-card instructions-card">
@@ -404,7 +460,7 @@ function App() {
               <li>Enter your name</li>
               <li>Read the current question</li>
               <li>Tap the correct floating answer option</li>
-              <li>Wrong taps reduce points</li>
+              <li>Wrong taps give 0 points</li>
             </ol>
             <p className="subtle">Current Question</p>
             <p className="question-preview">{state.question?.prompt || 'Loading question...'}</p>
@@ -439,7 +495,11 @@ function App() {
                 <span className="result-stat-key">Players</span>
               </div>
             </div>
-            <p className="result-message">{rankProfile.message}</p>
+            <p className="result-message">
+              {activePlayer?.attempted
+                ? rankProfile.message
+                : 'No attempt recorded in this round. Score remains 0.'}
+            </p>
           </div>
         </div>
       </main>
@@ -502,7 +562,7 @@ function App() {
                     mass: 0.55,
                   }}
                   style={{
-                    fontSize: `${Math.max(10, word.size * wordScale * (isMobileDevice ? 0.82 : 1))}px`,
+                    fontSize: `${Math.max(12, word.size * wordScale * (isMobileDevice ? 0.95 : 1.07))}px`,
                     ...tokenGradient,
                   }}
                   onClick={() => tapWord(word.id)}
@@ -620,8 +680,13 @@ function App() {
                 </fieldset>
 
                 {feedbackError ? <p className="fb-error">{feedbackError}</p> : null}
-                <button type="button" className="fb-submit-btn" onClick={submitFeedback}>
-                  Submit &amp; See My Result
+                <button
+                  type="button"
+                  className="fb-submit-btn"
+                  onClick={submitFeedback}
+                  disabled={feedbackSubmitting}
+                >
+                  {feedbackSubmitting ? 'Submitting...' : 'Submit & See My Result'}
                 </button>
               </div>
             </div>

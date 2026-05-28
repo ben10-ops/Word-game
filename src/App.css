@@ -113,7 +113,7 @@
   border: 1px solid #495261;
   border-radius: 8px;
   padding: 0.38rem 0.48rem;
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   background: rgba(36, 42, 50, 0.85);
 }
 
@@ -124,7 +124,7 @@
   border: 1px solid #495261;
   border-radius: 8px;
   padding: 0.38rem 0.48rem;
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   background: rgba(36, 42, 50, 0.85);
 }
 
@@ -435,9 +435,9 @@
   background: linear-gradient(130deg, rgba(16, 33, 43, 0.95), rgba(12, 23, 34, 0.95));
   color: #ccecff;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.83rem;
+  font-size: 0.9rem;
   padding: 0.44rem 0.66rem;
-  line-height: 1.32;
+  line-height: 1.4;
   box-shadow: 0 0 0 1px rgba(99, 206, 255, 0.15), 0 6px 14px rgba(2, 4, 8, 0.5);
 }
 
@@ -453,8 +453,8 @@
   background: linear-gradient(130deg, rgba(18, 33, 43, 0.93), rgba(12, 24, 34, 0.93));
   color: #ecf4fb;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.78rem;
-  padding: 0.36rem 0.58rem;
+  font-size: 0.85rem;
+  padding: 0.44rem 0.64rem;
   display: grid;
   align-items: center;
   box-shadow: 0 6px 12px rgba(2, 4, 8, 0.38);
@@ -846,8 +846,8 @@
   position: absolute;
   transform: translate(-50%, -50%);
   border: 1px solid transparent;
-  border-radius: 11px;
-  padding: 0.26rem 0.68rem;
+  border-radius: 13px;
+  padding: 0.32rem 0.78rem;
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   white-space: nowrap;
@@ -1203,13 +1203,13 @@
   }
 
   .question-panel {
-    font-size: 0.73rem;
-    padding: 0.32rem 0.44rem;
+    font-size: 0.84rem;
+    padding: 0.42rem 0.54rem;
   }
 
   .stat-chip {
-    font-size: 0.71rem;
-    padding: 0.26rem 0.42rem;
+    font-size: 0.79rem;
+    padding: 0.34rem 0.5rem;
   }
 
   .round-wait-banner {
@@ -1220,9 +1220,9 @@
   }
 
   .word {
-    padding: 0.12rem 0.42rem;
+    padding: 0.24rem 0.58rem;
     letter-spacing: 0;
-    border-radius: 8px;
+    border-radius: 10px;
     transition: transform 0.07s linear, opacity 0.18s linear;
   }
 
