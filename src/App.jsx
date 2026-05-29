@@ -83,6 +83,7 @@ function App() {
   const [arenaSize, setArenaSize] = useState(DEFAULT_WORLD)
   const [feedbackDone, setFeedbackDone] = useState(false)
   const [autoFinished, setAutoFinished] = useState(false)
+  const [localTappedIds, setLocalTappedIds] = useState(new Set())
   const [feedbackApps, setFeedbackApps] = useState([])
   const [feedbackWell, setFeedbackWell] = useState([])
   const [feedbackImprove, setFeedbackImprove] = useState([])
@@ -234,6 +235,7 @@ function App() {
       // Player answered all 15 questions — go straight to feedback
       setAutoFinished(true)
       setFeedbackDone(false)
+      setLocalTappedIds(new Set())
     })
 
     return () => {
@@ -257,6 +259,11 @@ function App() {
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
+
+  // Reset local tapped words whenever the player's question rotates
+  useEffect(() => {
+    setLocalTappedIds(new Set())
+  }, [activePlayer?.currentQuestion?.id])
 
   useEffect(() => {
     if (!isPlayerView) return undefined
@@ -296,7 +303,9 @@ function App() {
   }
 
   const tapWord = (wordId) => {
-    if (!activePlayer || !state.running) return
+    if (!activePlayer || !state.running || autoFinished) return
+    // Optimistically hide the tapped word immediately
+    setLocalTappedIds((prev) => { const next = new Set(prev); next.add(wordId); return next })
     socketRef.current?.emit('word:tap', { wordId })
   }
 
@@ -571,7 +580,7 @@ function App() {
           )}
 
           <div className="player-top-strip" aria-hidden="true">
-            <div className="question-panel">Q: {state.question?.prompt || 'Syncing question...'}</div>
+            <div className="question-panel">Q: {activePlayer?.currentQuestion?.prompt ?? state.question?.prompt ?? 'Syncing question...'}</div>
             <div className="player-stats-stack">
               <div className="stat-chip stat-timer">Time Left: {Math.floor(state.timeLeft / 60)}:{String(state.timeLeft % 60).padStart(2, '0')}</div>
               <div className="stat-chip stat-score">Score: {activePlayer?.score ?? 0}</div>
@@ -579,7 +588,7 @@ function App() {
           </div>
 
           <div className="word-field" ref={arenaRef}>
-            {state.words.map((word) => {
+            {state.words.filter((w) => !localTappedIds.has(w.id)).map((word) => {
               const faded = state.event?.id === 'visibility-drop' ? 0.48 : 1.0
               const tokenGradient = getTokenGradient(word)
               const leftPercent = (word.x / worldWidth) * 100
@@ -606,7 +615,7 @@ function App() {
                     ...tokenGradient,
                   }}
                   onClick={() => tapWord(word.id)}
-                  disabled={!activePlayer || !state.running}
+                  disabled={!activePlayer || !state.running || autoFinished}
                 >
                   {word.text}
                 </motion.button>
