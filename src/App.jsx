@@ -113,18 +113,18 @@ function App() {
     [state.players],
   )
   const topPlayers = useMemo(() => {
+    const submitted = state.players.filter((p) => p.surveySubmitted)
     if (Array.isArray(state.sessionTopFive) && state.sessionTopFive.length > 0) {
-      return state.sessionTopFive.filter((p) => p.attempted).slice(0, 5)
+      const submittedIds = new Set(submitted.map((p) => p.id))
+      return state.sessionTopFive.filter((p) => submittedIds.has(p.id)).slice(0, 5)
     }
-    return [...state.players]
+    return [...submitted]
       .filter((p) => (p.correctHits ?? 0) > 0 || p.score > 0)
       .sort((left, right) => right.score - left.score)
       .slice(0, 5)
   }, [state.players, state.sessionTopFive])
   const winnerRanking = useMemo(() => {
-    const qualified = state.players.filter((player) => player.isQualified)
-    const source = qualified.length > 0 ? qualified : state.players
-    return [...source].sort((left, right) => {
+    return [...state.players].sort((left, right) => {
       const leftAttempt = left.attempted ? 1 : 0
       const rightAttempt = right.attempted ? 1 : 0
       if (rightAttempt !== leftAttempt) return rightAttempt - leftAttempt
@@ -207,11 +207,6 @@ function App() {
 
     socket.on('state', (nextState) => {
       setState(nextState)
-      // If a new round starts while this player was auto-finished, reset so they can play
-      if (nextState.running) {
-        setAutoFinished(false)
-        setFeedbackDone(false)
-      }
     })
 
     socket.on('player:joined', ({ playerId: joinedPlayerId, name, sessionId }) => {
@@ -225,6 +220,9 @@ function App() {
       }
       setJoinRequested(false)
       setJoinError('')
+      setAutoFinished(false)
+      setFeedbackDone(false)
+      setLocalTappedIds(new Set())
     })
 
     socket.on('player:join:error', ({ message }) => {
@@ -488,8 +486,6 @@ function App() {
               <li>Tap the correct floating answer option</li>
               <li>Wrong taps give 0 points</li>
             </ol>
-            <p className="subtle">Current Question</p>
-            <p className="question-preview">{state.question?.prompt || 'Loading question...'}</p>
             <p className="subtle">Active players: {state.players.length}</p>
           </article>
         </section>
@@ -589,7 +585,7 @@ function App() {
 
           <div className="word-field" ref={arenaRef}>
             {state.words.filter((w) => !localTappedIds.has(w.id)).map((word) => {
-              const faded = state.event?.id === 'visibility-drop' ? 0.48 : 1.0
+              const faded = 1.0
               const tokenGradient = getTokenGradient(word)
               const leftPercent = (word.x / worldWidth) * 100
               const topPercent = (word.y / worldHeight) * 100
