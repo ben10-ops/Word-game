@@ -48,14 +48,14 @@ function hashString(value) {
 }
 
 const TOKEN_THEMES = [
-  { from: '#25c7c1', to: '#2f7bdf', border: '#b9f7f2', glow: 'rgba(37, 199, 193, 0.38)' },
-  { from: '#3ec4ff', to: '#3659d9', border: '#d0ebff', glow: 'rgba(62, 196, 255, 0.38)' },
-  { from: '#42dba0', to: '#178f7d', border: '#cefbe7', glow: 'rgba(66, 219, 160, 0.36)' },
-  { from: '#7ad0ff', to: '#2f8ca9', border: '#d9f3ff', glow: 'rgba(122, 208, 255, 0.35)' },
-  { from: '#43e3d2', to: '#2f5fc7', border: '#ccfbf5', glow: 'rgba(67, 227, 210, 0.36)' },
-  { from: '#6ec0ff', to: '#2a8f8f', border: '#d9ecff', glow: 'rgba(110, 192, 255, 0.34)' },
-  { from: '#2fc0a7', to: '#2465b2', border: '#c7f5eb', glow: 'rgba(47, 192, 167, 0.36)' },
-  { from: '#39d8ff', to: '#1f8a76', border: '#d0f7ff', glow: 'rgba(57, 216, 255, 0.34)' },
+  { from: '#0f3460', to: '#16213e', border: 'rgba(99,179,255,0.65)', glow: 'rgba(99,179,255,0.25)' },
+  { from: '#1a1a2e', to: '#16213e', border: 'rgba(160,120,255,0.65)', glow: 'rgba(160,120,255,0.25)' },
+  { from: '#0d2b1d', to: '#071a10', border: 'rgba(72,210,130,0.65)', glow: 'rgba(72,210,130,0.25)' },
+  { from: '#2b0d0d', to: '#1a0707', border: 'rgba(255,100,100,0.65)', glow: 'rgba(255,100,100,0.25)' },
+  { from: '#1a1200', to: '#2b1e00', border: 'rgba(255,200,60,0.65)', glow: 'rgba(255,200,60,0.25)' },
+  { from: '#0d1f2b', to: '#071318', border: 'rgba(60,200,220,0.65)', glow: 'rgba(60,200,220,0.25)' },
+  { from: '#200d2b', to: '#130718', border: 'rgba(220,100,255,0.65)', glow: 'rgba(220,100,255,0.25)' },
+  { from: '#2b1200', to: '#1a0b00', border: 'rgba(255,140,50,0.65)', glow: 'rgba(255,140,50,0.25)' },
 ]
 
 function getTokenGradient(word) {
@@ -65,6 +65,7 @@ function getTokenGradient(word) {
   return {
     backgroundImage: `linear-gradient(140deg, ${theme.from}, ${theme.to})`,
     borderColor: theme.border,
+    color: '#ffffff',
     '--token-glow': theme.glow,
   }
 }
@@ -533,7 +534,7 @@ function App() {
           <div className="player-top-strip" aria-hidden="true">
             <div className="question-panel">Q: {state.question?.prompt || 'Syncing question...'}</div>
             <div className="player-stats-stack">
-              <div className="stat-chip stat-timer">Time Left: {state.timeLeft}s</div>
+              <div className="stat-chip stat-timer">Time Left: {Math.floor(state.timeLeft / 60)}:{String(state.timeLeft % 60).padStart(2, '0')}</div>
               <div className="stat-chip stat-score">Score: {activePlayer?.score ?? 0}</div>
             </div>
           </div>

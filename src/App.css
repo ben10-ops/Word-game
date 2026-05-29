@@ -854,7 +854,7 @@
   letter-spacing: 0;
   cursor: pointer;
   touch-action: manipulation;
-  -webkit-tap-highlight-color: rgba(255,255,255,0.18);
+  -webkit-tap-highlight-color: rgba(134, 100, 100, 0.18);
   backdrop-filter: none;
   pointer-events: auto;
   transition:
@@ -888,43 +888,43 @@
 
 .token-target,
 .token-decoy {
-  color: #eef5ff;
-  border-color: rgba(222, 238, 255, 0.88);
+  color: #ffffff;
+  border-color: rgba(200, 210, 230, 0.7);
   box-shadow:
-    0 6px 16px rgba(3, 10, 22, 0.35),
+    0 6px 16px rgba(3, 10, 22, 0.45),
     0 0 14px var(--token-glow, rgba(90, 180, 255, 0.18));
 }
 
 .token-color-v1 {
-  background: linear-gradient(135deg, rgba(72, 170, 128, 0.58), rgba(54, 126, 95, 0.54));
+  background: linear-gradient(135deg, rgba(22, 26, 32, 0.92), rgba(44, 50, 60, 0.88));
 }
 
 .token-color-v2 {
-  background: linear-gradient(135deg, rgba(72, 132, 205, 0.6), rgba(56, 96, 159, 0.56));
+  background: linear-gradient(135deg, rgba(18, 22, 30, 0.92), rgba(40, 46, 58, 0.88));
 }
 
 .token-color-v3 {
-  background: linear-gradient(135deg, rgba(165, 118, 214, 0.62), rgba(123, 86, 171, 0.58));
+  background: linear-gradient(135deg, rgba(24, 24, 34, 0.92), rgba(46, 46, 62, 0.88));
 }
 
 .token-color-v4 {
-  background: linear-gradient(135deg, rgba(218, 142, 87, 0.62), rgba(176, 106, 60, 0.58));
+  background: linear-gradient(135deg, rgba(26, 22, 18, 0.92), rgba(52, 46, 38, 0.88));
 }
 
 .token-color-v5 {
-  background: linear-gradient(135deg, rgba(84, 196, 182, 0.6), rgba(57, 144, 150, 0.56));
+  background: linear-gradient(135deg, rgba(18, 26, 28, 0.92), rgba(38, 50, 52, 0.88));
 }
 
 .token-color-v6 {
-  background: linear-gradient(135deg, rgba(211, 112, 142, 0.62), rgba(165, 75, 108, 0.58));
+  background: linear-gradient(135deg, rgba(26, 18, 22, 0.92), rgba(50, 36, 44, 0.88));
 }
 
 .token-color-v7 {
-  background: linear-gradient(135deg, rgba(118, 189, 96, 0.6), rgba(79, 144, 63, 0.56));
+  background: linear-gradient(135deg, rgba(18, 26, 16, 0.92), rgba(38, 52, 34, 0.88));
 }
 
 .token-color-v8 {
-  background: linear-gradient(135deg, rgba(225, 168, 89, 0.62), rgba(179, 126, 57, 0.58));
+  background: linear-gradient(135deg, rgba(28, 24, 16, 0.92), rgba(54, 48, 32, 0.88));
 }
 
 .token-penalty {
@@ -1226,6 +1226,7 @@
     padding: 0.24rem 0.58rem;
     letter-spacing: 0;
     border-radius: 10px;
+    font-size: 20px;
     transition: transform 0.07s linear, opacity 0.18s linear;
   }
 
