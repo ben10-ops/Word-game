@@ -627,7 +627,7 @@ function App() {
                 <fieldset className="feedback-group">
                   <legend>1. Which applications have you used? (Select all that apply)</legend>
                   {[
-                    'OneConnect', 'V-Rewards', 'Pulse', 'Compass',
+                    'OneConnect', 'Rewards and Recognition', 'Pulse', 'Compass',
                     'Visitor Management System (VMS)', 'Contract Management System (CMS)',
                     'House of Ideas', 'MyAssets', 'eMbark',
                   ].map((app) => (
@@ -683,7 +683,6 @@ function App() {
                     'Performance issues (slow response, lag)',
                     'Complex or difficult to use',
                     'Missing or insufficient features',
-                    'Bugs or technical errors',
                     'Limited relevance to my work needs',
                   ].map((opt) => (
                     <label key={opt} className="fb-check">
