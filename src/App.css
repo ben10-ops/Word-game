@@ -1113,6 +1113,36 @@
   color: #f1f4f8;
 }
 
+.join-subtitle {
+  margin: 0;
+  text-align: center;
+  color: #b0bec5;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.late-join-icon {
+  font-size: 2.5rem;
+  text-align: center;
+}
+
+.late-join-countdown {
+  text-align: center;
+  font-size: 1rem;
+  color: #cbd5e1;
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  border-radius: 10px;
+  padding: 0.5rem 1.2rem;
+}
+
+.late-join-countdown strong {
+  color: #f97316;
+  font-size: 1.2rem;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
 .join-error {
   margin: 0;
   text-align: center;

@@ -82,6 +82,7 @@ function App() {
   const [joinError, setJoinError] = useState('')
   const [arenaSize, setArenaSize] = useState(DEFAULT_WORLD)
   const [feedbackDone, setFeedbackDone] = useState(false)
+  const [autoFinished, setAutoFinished] = useState(false)
   const [feedbackApps, setFeedbackApps] = useState([])
   const [feedbackWell, setFeedbackWell] = useState([])
   const [feedbackImprove, setFeedbackImprove] = useState([])
@@ -112,9 +113,12 @@ function App() {
   )
   const topPlayers = useMemo(() => {
     if (Array.isArray(state.sessionTopFive) && state.sessionTopFive.length > 0) {
-      return state.sessionTopFive.slice(0, 5)
+      return state.sessionTopFive.filter((p) => p.attempted).slice(0, 5)
     }
-    return [...state.players].sort((left, right) => right.score - left.score).slice(0, 5)
+    return [...state.players]
+      .filter((p) => (p.correctHits ?? 0) > 0 || p.score > 0)
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 5)
   }, [state.players, state.sessionTopFive])
   const winnerRanking = useMemo(() => {
     const qualified = state.players.filter((player) => player.isQualified)
@@ -202,6 +206,11 @@ function App() {
 
     socket.on('state', (nextState) => {
       setState(nextState)
+      // If a new round starts while this player was auto-finished, reset so they can play
+      if (nextState.running) {
+        setAutoFinished(false)
+        setFeedbackDone(false)
+      }
     })
 
     socket.on('player:joined', ({ playerId: joinedPlayerId, name, sessionId }) => {
@@ -219,6 +228,12 @@ function App() {
 
     socket.on('player:join:error', ({ message }) => {
       setJoinError(message || 'Unable to join this round')
+    })
+
+    socket.on('player:auto-finish', ({ score, qualifiesForGoodies }) => {
+      // Player answered all 15 questions — go straight to feedback
+      setAutoFinished(true)
+      setFeedbackDone(false)
     })
 
     return () => {
@@ -415,7 +430,8 @@ function App() {
                       {index + 1}. {player.name}
                     </span>
                     <strong style={{ color: player.color }}>
-                      {player.attempted ? player.score : 'No Attempt'}
+                      {player.score}
+                      {state.goodiesBenchmark && player.score >= state.goodiesBenchmark ? ' 🎁' : ''}
                     </strong>
                   </li>
                 ))
@@ -472,7 +488,7 @@ function App() {
     )
   }
 
-  if (activePlayer && !state.running && feedbackDone) {
+  if (activePlayer && (!state.running || autoFinished) && feedbackDone) {
     return (
       <main className="app-shell player-view">
         <div className="result-screen">
@@ -513,21 +529,44 @@ function App() {
         <div className="battle-zone">
           {!activePlayer && (
             <div className="player-join-overlay">
-              <p className="join-title">Join This Round</p>
-              <input
-                className="player-join-input"
-                type="text"
-                value={selfJoinName}
-                onChange={(event) => setSelfJoinName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') joinSelfInPlayerView()
-                }}
-                placeholder="Enter your name"
-              />
-              {joinError ? <p className="join-error">{joinError}</p> : null}
-              <button type="button" className="player-join-btn" onClick={joinSelfInPlayerView}>
-                Start Playing
-              </button>
+              {joinError && joinError.includes('ending') ? (
+                <>
+                  <div className="late-join-icon">⏳</div>
+                  <p className="join-title" style={{ color: '#f97316' }}>Session Ending Soon</p>
+                  <p className="join-subtitle">
+                    This session is almost over. A new one starts shortly — please wait!
+                  </p>
+                  {state.sessionTimeLeft != null && (
+                    <div className="late-join-countdown">
+                      Session ends in:{' '}
+                      <strong>
+                        {Math.floor(state.sessionTimeLeft / 60)}:{String(state.sessionTimeLeft % 60).padStart(2, '0')}
+                      </strong>
+                    </div>
+                  )}
+                  <p className="join-subtitle" style={{ marginTop: '1rem', fontSize: '0.85rem', opacity: 0.7 }}>
+                    Keep this page open — you can join as soon as the next session begins.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="join-title">Join This Round</p>
+                  <input
+                    className="player-join-input"
+                    type="text"
+                    value={selfJoinName}
+                    onChange={(event) => setSelfJoinName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') joinSelfInPlayerView()
+                    }}
+                    placeholder="Enter your name"
+                  />
+                  {joinError ? <p className="join-error">{joinError}</p> : null}
+                  <button type="button" className="player-join-btn" onClick={joinSelfInPlayerView}>
+                    Start Playing
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -575,7 +614,7 @@ function App() {
             })}
           </div>
 
-          {activePlayer && !state.running && !feedbackDone ? (
+          {activePlayer && (!state.running || autoFinished) && !feedbackDone ? (
             <div className="feedback-overlay">
               <div className="feedback-scroll">
                 <h2 className="feedback-title">Application Usage &amp; Feedback Survey</h2>
