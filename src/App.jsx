@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { io } from 'socket.io-client'
 import './App.css'
@@ -84,6 +84,8 @@ function App() {
   const [feedbackDone, setFeedbackDone] = useState(false)
   const [autoFinished, setAutoFinished] = useState(false)
   const [localTappedIds, setLocalTappedIds] = useState(new Set())
+  const [localTimeLeft, setLocalTimeLeft] = useState(0)
+  const serverTimeLeftRef = useRef(0)
   const [feedbackApps, setFeedbackApps] = useState([])
   const [feedbackWell, setFeedbackWell] = useState([])
   const [feedbackImprove, setFeedbackImprove] = useState([])
@@ -93,10 +95,16 @@ function App() {
   const [feedbackError, setFeedbackError] = useState('')
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
 
-  const isPlayerView = useMemo(() => {
-    const params = new URLSearchParams(window.location.search)
-    return params.get('view') === 'player'
-  })
+  // const isPlayerView = useMemo(() => {
+  //   const params = new URLSearchParams(window.location.search)
+  //   return params.get('view') === 'player'
+  // })
+
+const isPlayerView = useMemo(() => {
+  return window.location.pathname === '/join'
+}, [])
+
+
 
   const isMobileDevice = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -180,11 +188,15 @@ function App() {
     }
   }, [activePlayerRank])
 
-  const playerJoinLink = useMemo(() => {
-    const url = new URL(window.location.href)
-    url.searchParams.set('view', 'player')
-    return url.toString()
-  }, [])
+  // const playerJoinLink = useMemo(() => {
+  //   const url = new URL(window.location.href)
+  //   url.searchParams.set('view', 'player')
+  //   return url.toString()
+  // }, [])
+
+const playerJoinLink = useMemo(() => {
+  return `${window.location.origin}/join`
+}, [])
 
   useEffect(() => {
     const socket = io(BACKEND_URL, {
@@ -205,11 +217,19 @@ function App() {
       setConnected(false)
     })
 
-    socket.on('state', (nextState) => {
-      setState(nextState)
-    })
+    // socket.on('state', (nextState) => {
+    //   setState(nextState)
+    // })
 
-    socket.on('player:joined', ({ playerId: joinedPlayerId, name, sessionId }) => {
+
+    socket.on('state', (nextState) => {
+  setState(nextState)
+  // Sync local countdown with server value
+  serverTimeLeftRef.current = nextState.timeLeft || 0
+  setLocalTimeLeft(nextState.timeLeft || 0)
+})
+
+    socket.on('player:joined', ({ playerId: joinedPlayerId, name, sessionId, isReconnect }) => {
       setPlayerId(joinedPlayerId)
       setSelfJoinName(name)
       if (sessionId) {
@@ -220,10 +240,18 @@ function App() {
       }
       setJoinRequested(false)
       setJoinError('')
-      setAutoFinished(false)
-      setFeedbackDone(false)
       setLocalTappedIds(new Set())
+
+      // On a fresh join reset all local UI state.
+      // On reconnect (page refresh) keep autoFinished + feedbackDone so the
+      // player lands back on the correct screen without losing their progress.
+      if (!isReconnect) {
+        setAutoFinished(false)
+        setFeedbackDone(false)
+      }
     })
+
+
 
     socket.on('player:join:error', ({ message }) => {
       setJoinError(message || 'Unable to join this round')
@@ -236,10 +264,30 @@ function App() {
       setLocalTappedIds(new Set())
     })
 
+    socket.on('session:reset', () => {
+      window.location.reload()
+    })
+
     return () => {
       socket.disconnect()
     }
   }, [])
+
+  // Client-side countdown: interpolates between server ticks so the timer
+  // feels smooth rather than jumping every time a socket packet arrives.
+  useEffect(() => {
+    if (!state.running || autoFinished) return undefined
+
+    const id = window.setInterval(() => {
+      setLocalTimeLeft((prev) => {
+        const next = Math.max(0, prev - 1)
+        serverTimeLeftRef.current = next
+        return next
+      })
+    }, 1000)
+
+    return () => window.clearInterval(id)
+  }, [state.running, autoFinished])
 
   useEffect(() => {
     if (!arenaRef.current) return undefined
@@ -262,6 +310,23 @@ function App() {
   useEffect(() => {
     setLocalTappedIds(new Set())
   }, [activePlayer?.currentQuestion?.id])
+
+  // Server is the source of truth — sync local UI flags from server state after reconnect.
+  // If the player already submitted the survey, skip straight to the result screen.
+  useEffect(() => {
+    if (activePlayer?.surveySubmitted) {
+      setFeedbackDone(true)
+    }
+  }, [activePlayer?.surveySubmitted])
+
+  // If server says the game is still running but local autoFinished is stale,
+  // clear it so the player sees the arena (not the feedback form).
+  useEffect(() => {
+    if (activePlayer && state.running && autoFinished) {
+      setAutoFinished(false)
+    }
+  }, [activePlayer, state.running, autoFinished])
+
 
   useEffect(() => {
     if (!isPlayerView) return undefined
@@ -575,17 +640,17 @@ function App() {
             </div>
           )}
 
-          <div className="player-top-strip" aria-hidden="true">
+          <div className="player-top-strip">
             <div className="question-panel">Q: {activePlayer?.currentQuestion?.prompt ?? state.question?.prompt ?? 'Syncing question...'}</div>
             <div className="player-stats-stack">
-              <div className="stat-chip stat-timer">Time Left: {Math.floor(state.timeLeft / 60)}:{String(state.timeLeft % 60).padStart(2, '0')}</div>
-              <div className="stat-chip stat-score">Score: {activePlayer?.score ?? 0}</div>
+              <div className={`stat-chip stat-timer${localTimeLeft <= 10 && localTimeLeft > 0 ? ' stat-timer-urgent' : ''}`}>⏱ {Math.floor(localTimeLeft / 60)}:{String(localTimeLeft % 60).padStart(2, '0')}</div>
+              <div className="stat-chip stat-score">⭐ Score: {activePlayer?.score ?? 0}</div>
             </div>
           </div>
 
           <div className="word-field" ref={arenaRef}>
+            <AnimatePresence>
             {state.words.filter((w) => !localTappedIds.has(w.id)).map((word) => {
-              const faded = 1.0
               const tokenGradient = getTokenGradient(word)
               const leftPercent = (word.x / worldWidth) * 100
               const topPercent = (word.y / worldHeight) * 100
@@ -594,17 +659,21 @@ function App() {
                   type="button"
                   key={word.id}
                   className={`word token-${word.type} tier-${word.tier}`}
-                  initial={false}
+                  initial={{ opacity: 0, scale: 0.5, left: `${leftPercent}%`, top: `${topPercent}%` }}
                   animate={{
                     left: `${leftPercent}%`,
                     top: `${topPercent}%`,
-                    opacity: faded,
+                    opacity: 1,
+                    scale: 1,
                   }}
+                  exit={{ opacity: 0, scale: 0.3 }}
                   transition={{
                     type: 'spring',
-                    stiffness: isMobileDevice ? 96 : 130,
-                    damping: isMobileDevice ? 17 : 21,
-                    mass: 0.55,
+                    stiffness: isMobileDevice ? 80 : 110,
+                    damping: isMobileDevice ? 16 : 20,
+                    mass: 0.6,
+                    opacity: { duration: 0.25 },
+                    scale: { duration: 0.25 },
                   }}
                   style={{
                     fontSize: `${Math.max(13, word.size * wordScale * (isMobileDevice ? 1.05 : 1.07))}px`,
@@ -617,6 +686,7 @@ function App() {
                 </motion.button>
               )
             })}
+            </AnimatePresence>
           </div>
 
           {activePlayer && (!state.running || autoFinished) && !feedbackDone ? (

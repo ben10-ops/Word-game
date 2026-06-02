@@ -462,6 +462,18 @@
 
 .stat-timer {
   border-color: rgba(142, 182, 255, 0.7);
+  color: #d4e8ff;
+}
+
+.stat-timer-urgent {
+  border-color: rgba(255, 80, 80, 0.85) !important;
+  color: #ff6b6b !important;
+  animation: timerPulse 0.7s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 80, 80, 0); }
+  50% { box-shadow: 0 0 10px 3px rgba(255, 80, 80, 0.5); }
 }
 
 .stat-score {
@@ -495,7 +507,9 @@
 .word-field {
   position: relative;
   min-height: 0;
+  height: 100%;
   z-index: 1;
+  overflow: hidden;
 }
 
 .feedback-overlay {
