@@ -1041,6 +1041,14 @@
   letter-spacing: 0.08em;
 }
 
+.qr-link {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--accent);
+  word-break: break-all;
+  margin-top: 0.3rem;
+}
+
 .qr-input {
   margin-top: 0.35rem;
   border-radius: 8px;

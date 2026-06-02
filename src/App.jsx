@@ -539,6 +539,7 @@ const playerJoinLink = useMemo(() => {
               />
             </div>
             <p className="subtle">Room: {state.roomId}</p>
+            <p className="qr-link subtle">{playerJoinLink}</p>
             <p className="subtle">Players scan and join instantly.</p>
           </article>
 
