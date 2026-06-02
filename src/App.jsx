@@ -84,8 +84,6 @@ function App() {
   const [feedbackDone, setFeedbackDone] = useState(false)
   const [autoFinished, setAutoFinished] = useState(false)
   const [localTappedIds, setLocalTappedIds] = useState(new Set())
-  const [localTimeLeft, setLocalTimeLeft] = useState(0)
-  const serverTimeLeftRef = useRef(0)
   const [feedbackApps, setFeedbackApps] = useState([])
   const [feedbackWell, setFeedbackWell] = useState([])
   const [feedbackImprove, setFeedbackImprove] = useState([])
@@ -94,6 +92,8 @@ function App() {
   const [feedbackSuggestions, setFeedbackSuggestions] = useState('')
   const [feedbackError, setFeedbackError] = useState('')
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const [sessionReset, setSessionReset] = useState(null) // null | 'admin' | 'timeout'
+  const [sessionEndingIn, setSessionEndingIn] = useState(null) // null | number (seconds)
 
   // const isPlayerView = useMemo(() => {
   //   const params = new URLSearchParams(window.location.search)
@@ -224,9 +224,6 @@ const playerJoinLink = useMemo(() => {
 
     socket.on('state', (nextState) => {
   setState(nextState)
-  // Sync local countdown with server value
-  serverTimeLeftRef.current = nextState.timeLeft || 0
-  setLocalTimeLeft(nextState.timeLeft || 0)
 })
 
     socket.on('player:joined', ({ playerId: joinedPlayerId, name, sessionId, isReconnect }) => {
@@ -264,8 +261,15 @@ const playerJoinLink = useMemo(() => {
       setLocalTappedIds(new Set())
     })
 
-    socket.on('session:reset', () => {
-      window.location.reload()
+    socket.on('session:reset', ({ reason } = {}) => {
+      setSessionReset(reason || 'admin')
+      // Give players a moment to read the screen, then reload into the new session
+      const delay = reason === 'timeout' ? 3000 : 2000
+      setTimeout(() => window.location.reload(), delay)
+    })
+
+    socket.on('session:ending-soon', ({ secondsLeft }) => {
+      setSessionEndingIn(secondsLeft)
     })
 
     return () => {
@@ -273,21 +277,7 @@ const playerJoinLink = useMemo(() => {
     }
   }, [])
 
-  // Client-side countdown: interpolates between server ticks so the timer
-  // feels smooth rather than jumping every time a socket packet arrives.
-  useEffect(() => {
-    if (!state.running || autoFinished) return undefined
 
-    const id = window.setInterval(() => {
-      setLocalTimeLeft((prev) => {
-        const next = Math.max(0, prev - 1)
-        serverTimeLeftRef.current = next
-        return next
-      })
-    }, 1000)
-
-    return () => window.clearInterval(id)
-  }, [state.running, autoFinished])
 
   useEffect(() => {
     if (!arenaRef.current) return undefined
@@ -448,6 +438,27 @@ const playerJoinLink = useMemo(() => {
   const worldHeight = state.world?.height || DEFAULT_WORLD.height
   const wordScale = Math.min(arenaSize.width / worldWidth, arenaSize.height / worldHeight)
   const eventName = state.event?.name ? `System Event: ${state.event.name}` : 'Nominal state'
+
+  // Full-screen overlay shown when a session reset is in progress
+  if (sessionReset) {
+    return (
+      <div className="session-reset-screen">
+        <div className="session-reset-card">
+          <div className="session-reset-icon">{sessionReset === 'timeout' ? '⏰' : '🔄'}</div>
+          <p className="session-reset-title">
+            {sessionReset === 'timeout' ? 'Session Time Up!' : 'New Session Starting'}
+          </p>
+          <p className="session-reset-sub">
+            {sessionReset === 'timeout'
+              ? 'The 20-minute session has ended. A new one is loading…'
+              : 'The host has started a new session. Reloading…'}
+          </p>
+          <div className="session-reset-spinner" />
+        </div>
+      </div>
+    )
+  }
+
   if (!isPlayerView) {
     return (
       <main className="app-shell host-screen">
@@ -644,10 +655,16 @@ const playerJoinLink = useMemo(() => {
           <div className="player-top-strip">
             <div className="question-panel">Q: {activePlayer?.currentQuestion?.prompt ?? state.question?.prompt ?? 'Syncing question...'}</div>
             <div className="player-stats-stack">
-              <div className={`stat-chip stat-timer${localTimeLeft <= 10 && localTimeLeft > 0 ? ' stat-timer-urgent' : ''}`}>⏱ {Math.floor(localTimeLeft / 60)}:{String(localTimeLeft % 60).padStart(2, '0')}</div>
+              <div className={`stat-chip stat-timer${state.timeLeft <= 10 && state.timeLeft > 0 ? ' stat-timer-urgent' : ''}`}>⏱ {Math.floor(state.timeLeft / 60)}:{String(state.timeLeft % 60).padStart(2, '0')}</div>
               <div className="stat-chip stat-score">⭐ Score: {activePlayer?.score ?? 0}</div>
             </div>
           </div>
+
+          {sessionEndingIn != null && (
+            <div className="session-ending-banner">
+              ⚠️ Session ends in <strong>{sessionEndingIn}s</strong> — wrap up!
+            </div>
+          )}
 
           <div className="word-field" ref={arenaRef}>
             <AnimatePresence>
