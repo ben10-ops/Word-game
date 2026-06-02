@@ -94,6 +94,8 @@ function App() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const [sessionReset, setSessionReset] = useState(null) // null | 'admin' | 'timeout'
   const [sessionEndingIn, setSessionEndingIn] = useState(null) // null | number (seconds)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const confirmResetTimerRef = useRef(null)
 
   // const isPlayerView = useMemo(() => {
   //   const params = new URLSearchParams(window.location.search)
@@ -348,6 +350,15 @@ const playerJoinLink = useMemo(() => {
   }
 
   const resetGame = () => {
+    if (!confirmReset) {
+      // First click — arm the confirmation, auto-cancel after 4 seconds
+      setConfirmReset(true)
+      confirmResetTimerRef.current = setTimeout(() => setConfirmReset(false), 4000)
+      return
+    }
+    // Second click — confirmed, fire the reset
+    clearTimeout(confirmResetTimerRef.current)
+    setConfirmReset(false)
     socketRef.current?.emit('host:reset')
   }
 
@@ -493,8 +504,12 @@ const playerJoinLink = useMemo(() => {
                 Smooth
               </button>
             </div>
-            <button type="button" className="reset-btn" onClick={resetGame}>
-              Restart Match
+            <button
+              type="button"
+              className={confirmReset ? 'reset-btn reset-btn-confirm' : 'reset-btn'}
+              onClick={resetGame}
+            >
+              {confirmReset ? '⚠️ Tap again to confirm reset' : 'Restart Match'}
             </button>
           </div>
         </header>
