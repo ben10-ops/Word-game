@@ -264,8 +264,18 @@ const playerJoinLink = useMemo(() => {
     })
 
     socket.on('session:reset', ({ reason } = {}) => {
+      // ── Immediately wipe ALL local state so the admin screen shows
+      // 0 players, empty leaderboard, and 0 counts the instant reset fires.
+      // Without this, stale data remains visible during the 2-3s reload delay.
+      setState(EMPTY_STATE)
+      setPlayerId('')
+      setAutoFinished(false)
+      setFeedbackDone(false)
+      setLocalTappedIds(new Set())
+      setSessionEndingIn(null)
+      setConfirmReset(false)
+
       setSessionReset(reason || 'admin')
-      // Give players a moment to read the screen, then reload into the new session
       const delay = reason === 'timeout' ? 3000 : 2000
       setTimeout(() => window.location.reload(), delay)
     })
