@@ -92,6 +92,7 @@ function App() {
   const [feedbackSuggestions, setFeedbackSuggestions] = useState('')
   const [feedbackError, setFeedbackError] = useState('')
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
   const [sessionReset, setSessionReset] = useState(null)
   const [sessionEndingIn, setSessionEndingIn] = useState(null)
 
