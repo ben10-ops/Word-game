@@ -361,15 +361,26 @@ const playerJoinLink = useMemo(() => {
 
   const resetGame = () => {
     if (!confirmReset) {
-      // First click — arm the confirmation, auto-cancel after 4 seconds
+      // First click — arm confirmation, auto-cancel after 4 seconds
       setConfirmReset(true)
       confirmResetTimerRef.current = setTimeout(() => setConfirmReset(false), 4000)
       return
     }
-    // Second click — confirmed, fire the reset
+
+    // Second click — confirmed.
+    // Immediately wipe ALL local state so the admin sees 0/empty right away.
+    // Don't wait for the server's session:reset echo — clear now, reload after 2s.
     clearTimeout(confirmResetTimerRef.current)
     setConfirmReset(false)
-    socketRef.current?.emit('host:reset')
+    setState(EMPTY_STATE)
+    setPlayerId('')
+    setAutoFinished(false)
+    setFeedbackDone(false)
+    setLocalTappedIds(new Set())
+    setSessionEndingIn(null)
+    setSessionReset('admin')          // show transition screen immediately
+    socketRef.current?.emit('host:reset') // tell server to reset backend
+    setTimeout(() => window.location.reload(), 2000)
   }
 
   const setPerformanceMode = (mode) => {
@@ -519,7 +530,7 @@ const playerJoinLink = useMemo(() => {
               className={confirmReset ? 'reset-btn reset-btn-confirm' : 'reset-btn'}
               onClick={resetGame}
             >
-              {confirmReset ? '⚠️ Tap again to confirm reset' : 'Restart Match'}
+              {confirmReset ? '⚠️ Confirm Reset' : 'Reset'}
             </button>
           </div>
         </header>
