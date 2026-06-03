@@ -92,10 +92,8 @@ function App() {
   const [feedbackSuggestions, setFeedbackSuggestions] = useState('')
   const [feedbackError, setFeedbackError] = useState('')
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
-  const [sessionReset, setSessionReset] = useState(null) // null | 'admin' | 'timeout'
-  const [sessionEndingIn, setSessionEndingIn] = useState(null) // null | number (seconds)
-  const [confirmReset, setConfirmReset] = useState(false)
-  const confirmResetTimerRef = useRef(null)
+  const [sessionReset, setSessionReset] = useState(null)
+  const [sessionEndingIn, setSessionEndingIn] = useState(null)
 
   // const isPlayerView = useMemo(() => {
   //   const params = new URLSearchParams(window.location.search)
@@ -360,27 +358,17 @@ const playerJoinLink = useMemo(() => {
   }
 
   const resetGame = () => {
-    if (!confirmReset) {
-      // First click — arm confirmation, auto-cancel after 4 seconds
-      setConfirmReset(true)
-      confirmResetTimerRef.current = setTimeout(() => setConfirmReset(false), 4000)
-      return
-    }
-
-    // Second click — confirmed.
-    // Immediately wipe ALL local state so the admin sees 0/empty right away.
-    // Don't wait for the server's session:reset echo — clear now, reload after 2s.
-    clearTimeout(confirmResetTimerRef.current)
-    setConfirmReset(false)
+    // Immediately wipe all local state — Active Players, Playing Live,
+    // and Leaderboard all go to zero/empty on the admin screen right now.
     setState(EMPTY_STATE)
     setPlayerId('')
     setAutoFinished(false)
     setFeedbackDone(false)
     setLocalTappedIds(new Set())
     setSessionEndingIn(null)
-    setSessionReset('admin')          // show transition screen immediately
-    socketRef.current?.emit('host:reset') // tell server to reset backend
-    setTimeout(() => window.location.reload(), 2000)
+    setSessionReset('admin')            // show transition screen instantly
+    socketRef.current?.emit('host:reset') // reset backend in parallel
+    setTimeout(() => window.location.reload(), 2000) // reload into fresh session
   }
 
   const setPerformanceMode = (mode) => {
@@ -527,10 +515,10 @@ const playerJoinLink = useMemo(() => {
             </div>
             <button
               type="button"
-              className={confirmReset ? 'reset-btn reset-btn-confirm' : 'reset-btn'}
+              className="reset-btn"
               onClick={resetGame}
             >
-              {confirmReset ? '⚠️ Confirm Reset' : 'Reset'}
+              Reset
             </button>
           </div>
         </header>
